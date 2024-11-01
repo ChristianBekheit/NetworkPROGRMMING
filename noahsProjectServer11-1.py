@@ -1,11 +1,4 @@
-# -*- coding: utf-8 -*-
-"""
-Created on Thu Oct 31 20:59:07 2024
 
-@author: noah
-"""
-
-# Server Code
 # -*- coding: utf-8 -*-
 """
 Created on Tue Oct 22 11:23:51 2024
