@@ -53,7 +53,7 @@ def handle_client(sc, address):
             # Ask if the client has an account
             sc.sendall(b'Do you have an account (Y/N): ')
             client_message = sc.recv(1024).decode().strip()
-            
+                
             # Handle user login/registration
             if client_message == 'Y':
                 sc.sendall(b'Enter your Username: ')
