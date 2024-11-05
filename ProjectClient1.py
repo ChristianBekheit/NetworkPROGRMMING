@@ -25,7 +25,7 @@ while True:
    
     
     # Receive the server's response
-    server_message = s.recv(50).decode()
+    server_message = s.recv(1024).decode()
     print(f'Server: {server_message}')
     
     # Get the client's message from the console input
