@@ -5,7 +5,6 @@ Created on Tue Oct 22 11:23:51 2024
 
 @author: christian, Noah
 """ 
-
 import socket
 import sys
 import threading
@@ -64,7 +63,7 @@ def handle_client(sc, address):
                 
                 if verify_credentials(username, password):
                     clients[address]['username'] = username
-                    sc.sendall(b'Login successful!\n')
+                    sc.sendall(b'Login successful!\nEnter a command')
                     logged_out = False
                 else:
                     sc.sendall(b'Invalid credentials, please try again.\n')
@@ -85,8 +84,9 @@ def handle_client(sc, address):
                         
                         store_credentials(username, password)
                         clients[address]['username'] = username
-                        sc.sendall(b'Registration successful! You can now log in.')
+                        sc.sendall(b'Registration successful! You are now logged in.\nEnter a command')
                         logged_out = False
+
                 else:
                     sc.sendall(b'Registration declined. Connection closing...')
                     break
@@ -102,15 +102,23 @@ def handle_client(sc, address):
         try:
             client_message = sc.recv(1024).decode().strip()
             
+            # Displays all currently online user
+            if client_message == '/users':
+            # Collect usernames of all online users
+               online_users = [info['username'] for info in clients.values() if info['username']]
+               users_list = "\n".join(online_users) if online_users else "No users online."
+               sc.sendall(f'\nOnline users:\n{users_list}\n'.encode())
+
             
             # Handle direct messaging
-            if client_message.startswith('/connect '):
+            elif client_message.startswith('/connect '):
                 target_username = client_message.split(' ', 1)[1]
                 target_client = None
                 for client_info in clients.values():
                     if client_info['username'] == target_username:
                         target_client = client_info['socket']
                         break
+                
                 
                 
                 if target_client:
