@@ -1,11 +1,9 @@
-
 # -*- coding: utf-8 -*-
 """
 Created on Tue Oct 22 11:23:51 2024
 
 @author: christian, Noah
 """ 
-
 import socket
 import sys
 import threading
@@ -15,6 +13,7 @@ PORT = 9999
 
 CREDENTIALS_FILE = 'credentials.txt'
 clients = {}  # Dictionary to store connected clients
+groups = {}   # Dictionary to store active group chats
 
 def store_credentials(username, password):
     with open(CREDENTIALS_FILE, 'a') as file:
@@ -46,6 +45,7 @@ def handle_client(sc, address):
     username = None
     connected_user = None
     logged_out = True
+    current_group = None
     clients[address] = {'socket': sc, 'username': None}
     
     while logged_out:
@@ -64,7 +64,7 @@ def handle_client(sc, address):
                 
                 if verify_credentials(username, password):
                     clients[address]['username'] = username
-                    sc.sendall(b'Login successful!\n')
+                    sc.sendall(b'Login successful!\nEnter a command')
                     logged_out = False
                 else:
                     sc.sendall(b'Invalid credentials, please try again.\n')
@@ -85,8 +85,9 @@ def handle_client(sc, address):
                         
                         store_credentials(username, password)
                         clients[address]['username'] = username
-                        sc.sendall(b'Registration successful! You can now log in.')
+                        sc.sendall(b'Registration successful! You are now logged in.\nEnter a command')
                         logged_out = False
+
                 else:
                     sc.sendall(b'Registration declined. Connection closing...')
                     break
@@ -102,9 +103,14 @@ def handle_client(sc, address):
         try:
             client_message = sc.recv(1024).decode().strip()
             
+            # Displays all currently online users
+            if client_message == '/users':
+                online_users = [info['username'] for info in clients.values() if info['username']]
+                users_list = "\n".join(online_users) if online_users else "No users online."
+                sc.sendall(f'\nOnline users:\n{users_list}\n'.encode())
             
             # Handle direct messaging
-            if client_message.startswith('/connect '):
+            elif client_message.startswith('/connect '):
                 target_username = client_message.split(' ', 1)[1]
                 target_client = None
                 for client_info in clients.values():
@@ -112,13 +118,11 @@ def handle_client(sc, address):
                         target_client = client_info['socket']
                         break
                 
-                
                 if target_client:
                     sc.sendall(f'Connected to {target_username}. You can now chat.'.encode())
                     connected_user = target_client
                 else:
                     sc.sendall(b'User not found or not online.\n')
-                    
                     
             elif client_message == '/disconnect':
                 if connected_user:
@@ -127,21 +131,61 @@ def handle_client(sc, address):
                     sc.sendall(b'Disconnected from chat.\n')
                 else:
                     sc.sendall(b'You are not connected to any user.\n')
+            
+            # Group chat commands
+            elif client_message.startswith('/newgc '):
+                group_name = client_message.split(' ', 1)[1]
+                
+                if group_name in groups:
+                    sc.sendall(b'Group chat already exists.\n')
+                else:
+                    groups[group_name] = [sc]
+                    current_group = group_name
+                    sc.sendall(f'Group chat "{group_name}" created and joined successfully.\n'.encode())
+            
+            elif client_message.startswith('/join '):
+                group_name = client_message.split(' ', 1)[1]
+                
+                if group_name not in groups:
+                    sc.sendall(b'Group chat does not exist. Use /newgc to create one.\n')
+                elif sc not in groups[group_name]:
+                    groups[group_name].append(sc)
+                    current_group = group_name
+                    sc.sendall(f'Joined group chat: {group_name}\n'.encode())
+                else:
+                    sc.sendall(b'You are already in this group.\n')
+            
+            elif client_message.startswith('/leave '):
+                group_name = client_message.split(' ', 1)[1]
+                if group_name in groups and sc in groups[group_name]:
+                    groups[group_name].remove(sc)
+                    if not groups[group_name]:  # Clean up empty group
+                        del groups[group_name]
+                    current_group = None
+                    sc.sendall(f'Left group chat: {group_name}\n'.encode())
+                else:
+                    sc.sendall(b'You are not in this group.\n')
                     
-                    
-            elif connected_user:
-                # Forwards message to the connected user
-                connected_user.sendall(f'{username}: {client_message}\n'.encode())
+            elif current_group:
+                # Broadcast message to all group members except the sender
+                message = f'{username} in {current_group}: {client_message}\n'
+                for member_socket in groups[current_group]:
+                    if member_socket != sc:
+                        member_socket.sendall(message.encode())
+                
             else:
-                sc.sendall(b'You are not connected to any user. Use /connect <username> to start chatting.\n')
-        
+                sc.sendall(b'Invalid command. Use /users, /connect <username>, /disconnect, /newgc <group>, /join <group>, /leave <group>\n')
         
         except socket.error as msg:
             print(f'Socket error: {msg}')
             break
 
+    # Cleanup on client disconnect
     sc.close()
     del clients[address]
+    for group_name in groups:
+        if sc in groups[group_name]:
+            groups[group_name].remove(sc)
     print(f'Connection with {address[0]}:{str(address[1])} closed')
 
 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)

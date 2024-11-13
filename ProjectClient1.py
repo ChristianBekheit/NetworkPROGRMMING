@@ -14,7 +14,7 @@ Created on Mon Sep 23 10:00:05 2024
 
 import socket
 
-HOST = '10.220.33.104'#localhost 
+HOST = 'localhost'#localhost 
 PORT = 9999
 
 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -25,7 +25,7 @@ while True:
    
     
     # Receive the server's response
-    server_message = s.recv(50).decode()
+    server_message = s.recv(1024).decode()
     print(f'Server: {server_message}')
     
     # Get the client's message from the console input
