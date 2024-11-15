@@ -51,7 +51,6 @@ def handle_client(sc, address):
     while logged_out:
         try:
             # Ask if the client has an account
-            sc.sendall(b'Do you have an account (Y/N): ')
             client_message = sc.recv(1024).decode().strip()
                 
             # Handle user login/registration
