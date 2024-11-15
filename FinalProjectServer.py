@@ -107,7 +107,7 @@ def handle_client(sc, address):
                 online_users = [info['username'] for info in clients.values() if info['username']]
                 users_list = "\n".join(online_users) if online_users else "No users online."
                 sc.sendall(f'\nOnline users:\n{users_list}\n'.encode())
-            
+           
             # Handle direct messaging
             elif client_message.startswith('/connect '):
                 target_username = client_message.split(' ', 1)[1]
@@ -167,7 +167,7 @@ def handle_client(sc, address):
                     
             elif current_group:
                 # Broadcast message to all group members except the sender
-                message = f'{username} in {current_group}: {client_message}\n'
+                message = f'\n{username} in {current_group}: {client_message}\n'
                 for member_socket in groups[current_group]:
                     if member_socket != sc:
                         member_socket.sendall(message.encode())
