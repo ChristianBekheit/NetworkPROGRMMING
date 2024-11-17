@@ -20,7 +20,7 @@ def listenFromServer(sock):
                 buffer += server_message
                 while "\n" in buffer:
                     message, buffer = buffer.split("\n", 1)
-                    print(f'{message}')
+                    print(message)
             else:
                 print("Server closed the connection :(")
                 break

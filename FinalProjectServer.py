@@ -106,27 +106,51 @@ def handle_client(sc, address):
                 online_users = [info['username'] for info in clients.values() if info['username']]
                 users_list = "\n".join(online_users) if online_users else "No users online."
                 sc.sendall(f'\nOnline users:\n{users_list}\n'.encode())
-            
+           
             # Handle direct messaging
             elif client_message.startswith('/connect '):
                 target_username = client_message.split(' ', 1)[1]
                 target_client = None
-                for client_info in clients.values():
+                target_address = None
+                
+                for addr, client_info in clients.items():
                     if client_info['username'] == target_username:
                         target_client = client_info['socket']
+                        target_address = addr
                         break
                 
                 if target_client:
-                    sc.sendall(f'Connected to {target_username}. You can now chat.'.encode())
-                    connected_user = target_client
+                    if clients[target_address].get('connected_user'):
+                        sc.sendall(f'{target_username} is already in a chat.\n'.encode())
+                    else:
+                        clients[address]['connected_user'] = target_client
+                        clients[target_address]['connected_user'] = sc
+                        sc.sendall(f'Connected to {target_username}. Type /disconnect to leave this chat. \n'.encode())
+                        target_client.sendall(f'{clients[address]["username"]} has connected with you. Type /disconnect to leave this chat. \n'.encode())
                 else:
                     sc.sendall(b'User not found or not online.\n')
+               
                     
+            connected_socket = clients[address].get('connected_user')
+            if connected_socket:
+                try:
+                    sender_username = clients[address]["username"]
+                    formatted_message = f'{sender_username}: {client_message}\n'
+                    
+                    connected_socket.sendall(formatted_message.encode())
+                except socket.error as msg:
+                    print(f'Error sending message to connected user: {msg}')
+                
             elif client_message == '/disconnect':
-                if connected_user:
-                    connected_user.sendall(b'The user has disconnected from the chat.\n')
-                    connected_user = None
-                    sc.sendall(b'Disconnected from chat.\n')
+                connected_socket = clients[address].get('connected_user')
+                if connected_socket:
+                    connected_socket.sendall(b'The user has disconnected from the private chat.\n')
+                    clients[address]['connected_user'] = None
+                    for addr, client_info in clients.items():
+                        if client_info['socket'] == connected_socket:
+                            clients[addr]['connected_user'] = None
+                            break
+                        sc.sendall(b'Disconnected from the private chat.\n')
                 else:
                     sc.sendall(b'You are not connected to any user.\n')
             
@@ -166,6 +190,7 @@ def handle_client(sc, address):
                     
             elif current_group:
                 # Broadcast message to all group members except the sender
+
                   message = f'{username} in {current_group}: {client_message}\n'
                     
                   # Broadcast message to all group members except the sender
