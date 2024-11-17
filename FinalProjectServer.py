@@ -50,27 +50,26 @@ def handle_client(sc, address):
     
     while logged_out:
         try:
-            # Ask if the client has an account
             client_message = sc.recv(1024).decode().strip()
                 
             # Handle user login/registration
             if client_message == 'Y':
-                sc.sendall(b'Enter your Username: ')
+                sc.sendall(b'Enter your Username: \n')
                 username = sc.recv(1024).decode().strip()
                 
-                sc.sendall(b'Enter your Password: ')
+                sc.sendall(b'Enter your Password: \n')
                 password = sc.recv(1024).decode().strip()
                 
                 if verify_credentials(username, password):
                     clients[address]['username'] = username
-                    sc.sendall(b'Login successful!\nEnter a command')
+                    sc.sendall(b'Login successful!\nEnter a command\n')
                     logged_out = False
                 else:
                     sc.sendall(b'Invalid credentials, please try again.\n')
                     continue
             
             elif client_message == 'N':
-                sc.sendall(b'Would you like to register for an account? (Y/N): ')
+                sc.sendall(b'Would you like to register for an account? (Y/N): \n')
                 if sc.recv(1024).decode().strip() == 'Y':
                     sc.sendall(b'Please enter your desired Username: ')
                     username = sc.recv(1024).decode().strip()
@@ -84,7 +83,7 @@ def handle_client(sc, address):
                         
                         store_credentials(username, password)
                         clients[address]['username'] = username
-                        sc.sendall(b'Registration successful! You are now logged in.\nEnter a command')
+                        sc.sendall(b'Registration successful! You are now logged in.\nEnter a command\n')
                         logged_out = False
 
                 else:
@@ -167,10 +166,16 @@ def handle_client(sc, address):
                     
             elif current_group:
                 # Broadcast message to all group members except the sender
-                message = f'{username} in {current_group}: {client_message}\n'
-                for member_socket in groups[current_group]:
-                    if member_socket != sc:
-                        member_socket.sendall(message.encode())
+                  message = f'{username} in {current_group}: {client_message}\n'
+                    
+                  # Broadcast message to all group members except the sender
+                  for member_socket in groups[current_group]:
+                        if member_socket != sc:
+                            try:
+                                member_socket.sendall(message.encode())
+                            except socket.error as msg:
+                                print(f'Error sending message to group member: {msg}')
+
                 
             else:
                 sc.sendall(b'Invalid command. Use /users, /connect <username>, /disconnect, /newgc <group>, /join <group>, /leave <group>\n')
@@ -204,7 +209,7 @@ while True:
     try:
         sc, address = s.accept()
         print(f'Connected with {address[0]}:{str(address[1])}')
-        threading.Thread(target=handle_client, args=(sc, address)).start()
+        threading.Thread(target=handle_client, args=(sc, address), daemon=True).start()
     except socket.error as msg:
         print(f'Socket error: {msg}')
 
