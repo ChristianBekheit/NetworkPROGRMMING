@@ -12,16 +12,12 @@ HOST = 'localhost'
 PORT = 9999
 
 # Listen for messages from the server
-def listen_from_server(sock):
-    buffer = ""
+def listenFromServer(sock):
     while True:
         try:
-            server_message = sock.recv(1024).decode()
-            if server_message:
-                buffer += server_message
-                while "\n" in buffer:
-                    message, buffer = buffer.split("\n", 1)
-                    print(message)
+            serverMessage = sock.recv(1024).decode()
+            if serverMessage:
+                    print(serverMessage)
             else:
                 print("Server closed the connection :(")
                 break
@@ -30,12 +26,12 @@ def listen_from_server(sock):
             break
 
 # Send messages to the server
-def send_to_server(sock):
+def sendToServer(sock):
     while True:
         try:
-            client_message = input("")
-            sock.sendall((client_message + "\n").encode())
-            if client_message.lower() == '/disconnect':
+            clientMessage = input("")
+            sock.sendall((clientMessage + "\n").encode())
+            if clientMessage.lower() == '/disconnect':
                 print("Closing connection...")
                 break
         except Exception as e:
@@ -50,13 +46,13 @@ def main():
         print("Connected to server. Do you have an account? (Y/N)")
 
         # Start sending and listening threads
-        send_thread = threading.Thread(target=send_to_server, args=(s,), daemon=True)
-        send_thread.start()
-        listen_thread = threading.Thread(target=listen_from_server, args=(s,), daemon=True)
-        listen_thread.start()
+        sendThread = threading.Thread(target=sendToServer, args=(s,), daemon=True)
+        sendThread.start()
+        listenThread = threading.Thread(target=listenFromServer, args=(s,), daemon=True)
+        listenThread.start()
 
-        listen_thread.join()
-        send_thread.join()
+        listenThread.join()
+        sendThread.join()
 
     except ConnectionRefusedError:
         print(f"Error: Unable to connect to {HOST}:{PORT}. Is the server running?")

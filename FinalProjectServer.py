@@ -48,11 +48,11 @@ def verify_credentials(username, password):
 # Handle communication with a single client
 def handle_client(sc, address):
     username = None
-    logged_out = True
+    loggedOut = True
     current_group = None
     clients[address] = {'socket': sc, 'username': None}
     
-    while logged_out:
+    while loggedOut:
         try:
             client_message = sc.recv(1024).decode().strip()
                 
@@ -67,7 +67,7 @@ def handle_client(sc, address):
                 if verify_credentials(username, password):
                     clients[address]['username'] = username
                     sc.sendall(b'Login successful!\nEnter a command\n')
-                    logged_out = False
+                    loggedOut = False
                 else:
                     sc.sendall(b'Invalid credentials, please try again.\n')
                     continue
@@ -88,7 +88,7 @@ def handle_client(sc, address):
                         store_credentials(username, password)
                         clients[address]['username'] = username
                         sc.sendall(b'Registration successful! You are now logged in.\nEnter a command\n')
-                        logged_out = False
+                        loggedOut = False
 
                 else:
                     sc.sendall(b'Registration declined. Connection closing...')
@@ -101,56 +101,69 @@ def handle_client(sc, address):
             print(f'Socket error: {msg}')
             break
 
-    while not logged_out:
+    while not loggedOut:
         try:
-            client_message = sc.recv(1024).decode().strip()
+            clientMessage = sc.recv(1024).decode().strip()
             
             # Display online users
-            if client_message == '/users':
+            if clientMessage == '/users':
                 online_users = [info['username'] for info in clients.values() if info['username']]
                 users_list = "\n".join(online_users) if online_users else "No users online."
-                sc.sendall(f'\nOnline users:\n{users_list}\n'.encode())
+                sc.sendall(f'\nOnline users:\n{users_list}\n\n'.encode())
+                continue
            
             # Direct messaging
-            elif client_message.startswith('/connect '):
-                target_username = client_message.split(' ', 1)[1]
-                target_client = None
-                target_address = None
+            elif clientMessage.startswith('/connect '):
+                targetUsername = clientMessage.split(' ', 1)[1]
+                targetClient = None
+                targetAddress = None
                 
-                for addr, client_info in clients.items():
-                    if client_info['username'] == target_username:
-                        target_client = client_info['socket']
-                        target_address = addr
+                for addr, clientInfo in clients.items():
+                    if clientInfo['username'] == targetUsername:
+                        targetClient = clientInfo['socket']
+                        targetAddress = addr
                         break
-                
-                if target_client:
-                    if clients[target_address].get('connected_user'):
-                        sc.sendall(f'{target_username} is already in a chat.\n'.encode())
+                if targetClient:
+                    if clients[targetAddress].get('connectedUser'):
+                        sc.sendall(f'{targetUsername} is already in a chat.\n'.encode())
                     else:
-                        clients[address]['connected_user'] = target_client
-                        clients[target_address]['connected_user'] = sc
-                        sc.sendall(f'Connected to {target_username}. Type /disconnect to leave this chat. \n'.encode())
-                        target_client.sendall(f'{clients[address]["username"]} has connected with you. Type /disconnect to leave this chat. \n'.encode())
+                        clients[address]['connectedUser'] = targetClient
+                        clients[targetAddress]['connectedUser'] = sc
+                        sc.sendall(f'Connected to {targetUsername}. Type /disconnect to leave this chat. \n'.encode())
+                        targetClient.sendall(f'{clients[address]["username"]} has connected with you. Type /disconnect to leave this chat. \n'.encode())
+                        continue
                 else:
                     sc.sendall(b'User not found or not online.\n')
-                    
+                continue
+            
+            
+            
+            elif clientMessage.startswith('/list'):
+                sc.sendall(f'\nUse /users, /connect <username>, /disconnect, /newgc <group>, /join <group>, /leave <group>\n\n'.encode())
+                continue
+            
+            
+            
             # Handle disconnection
-            elif client_message == '/disconnect':
-                connected_socket = clients[address].get('connected_user')
-                if connected_socket:
-                    connected_socket.sendall(b'The user has disconnected from the private chat.\n')
-                    clients[address]['connected_user'] = None
-                    for addr, client_info in clients.items():
-                        if client_info['socket'] == connected_socket:
-                            clients[addr]['connected_user'] = None
+            elif clientMessage == '/disconnect':
+                connectedSocket = clients[address].get('connectedUser')
+                if connectedSocket:
+                    connectedSocket.sendall(b'The user has disconnected from the private chat.\n')
+                    clients[address]['connectedUser'] = None
+                    for addr, clientInfo in clients.items():
+                        if clientInfo['socket'] == connectedSocket:
+                            clients[addr]['connectedUser'] = None
                             break
                     sc.sendall(b'Disconnected from the private chat.\n')
                 else:
                     sc.sendall(b'You are not connected to any user.\n')
+                continue
+            
+            
             
             # Group chat commands
-            elif client_message.startswith('/newgc '):
-                group_name = client_message.split(' ', 1)[1]
+            elif clientMessage.startswith('/newgc '):
+                group_name = clientMessage.split(' ', 1)[1]
                 
                 if group_name in groups:
                     sc.sendall(b'Group chat already exists.\n')
@@ -158,9 +171,12 @@ def handle_client(sc, address):
                     groups[group_name] = [sc]
                     current_group = group_name
                     sc.sendall(f'Group chat "{group_name}" created and joined successfully.\n'.encode())
+                continue
             
-            elif client_message.startswith('/join '):
-                group_name = client_message.split(' ', 1)[1]
+                  
+            
+            elif clientMessage.startswith('/join '):
+                group_name = clientMessage.split(' ', 1)[1]
                 
                 if group_name not in groups:
                     sc.sendall(b'Group chat does not exist. Use /newgc to create one.\n')
@@ -170,9 +186,12 @@ def handle_client(sc, address):
                     sc.sendall(f'Joined group chat: {group_name}\n'.encode())
                 else:
                     sc.sendall(b'You are already in this group.\n')
+                continue
             
-            elif client_message.startswith('/leave '):
-                group_name = client_message.split(' ', 1)[1]
+            
+            
+            elif clientMessage.startswith('/leave '):
+                group_name = clientMessage.split(' ', 1)[1]
                 if group_name in groups and sc in groups[group_name]:
                     groups[group_name].remove(sc)
                     if not groups[group_name]:
@@ -181,16 +200,30 @@ def handle_client(sc, address):
                     sc.sendall(f'Left group chat: {group_name}\n'.encode())
                 else:
                     sc.sendall(b'You are not in this group.\n')
-                    
+                continue
+                  
+            
+            
             elif current_group:
                 # Broadcast to group members
-                message = f'{username} in {current_group}: {client_message}\n'
+                message = f'{username} in {current_group}: {clientMessage}\n'
                 for member_socket in groups[current_group]:
                     if member_socket != sc:
                         try:
                             member_socket.sendall(message.encode())
                         except socket.error as msg:
                             print(f'Error sending message to group member: {msg}')
+                continue
+            
+            connectedSocket = clients[address].get('connectedUser')
+            if connectedSocket:
+                try:
+                    senderUsername = clients[address]["username"]
+                    formattedMessage = f'{senderUsername}: {clientMessage}\n'
+                
+                    connectedSocket.sendall(formattedMessage.encode())
+                except socket.error as msg:
+                    print(f'Error sending message to connected user: {msg}')
                 
             else:
                 sc.sendall(b'Invalid command. Use /users, /connect <username>, /disconnect, /newgc <group>, /join <group>, /leave <group>\n')
