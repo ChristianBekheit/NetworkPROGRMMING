@@ -75,14 +75,14 @@ def handle_client(sc, address):
             elif client_message == 'N':
                 sc.sendall(b'Would you like to register for an account? (Y/N): \n')
                 if sc.recv(1024).decode().strip() == 'Y':
-                    sc.sendall(b'Please enter your desired Username: ')
+                    sc.sendall(b'Please enter your desired Username: \n')
                     username = sc.recv(1024).decode().strip()
                     
                     if user_exists(username):
                         sc.sendall(b'Username already exists. Please try a different one.\n')
                         continue
                     else:
-                        sc.sendall(b'Please enter your Password: ')
+                        sc.sendall(b'Please enter your Password: \n')
                         password = sc.recv(1024).decode().strip()
                         
                         store_credentials(username, password)
